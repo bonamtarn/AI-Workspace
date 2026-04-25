@@ -162,9 +162,9 @@ export default function AddAssetModal({ asset: editing, onClose }) {
             </label>
             <div className="flex gap-2">
               <input type="number" value={manualPrice} onChange={e => setManualPrice(e.target.value)} placeholder="0.00" step="any" min="0" className={inputCls} />
-              {symbol.startsWith('SCB') && (
+              {symbol && (
                 <button type="button" onClick={autoFetchNAV} disabled={navLoading}
-                  title="ดึง NAV อัตโนมัติจาก SCBAM"
+                  title="ดึง NAV อัตโนมัติ"
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40 shrink-0">
                   <RefreshCw className={`w-3.5 h-3.5 ${navLoading ? 'animate-spin' : ''}`} /> Auto
                 </button>
@@ -175,7 +175,7 @@ export default function AddAssetModal({ asset: editing, onClose }) {
                 ? <span className="text-green-500">{navError}</span>
                 : navError
                   ? <span className="text-red-400">{navError}</span>
-                  : <span className="text-slate-400">กรอก NAV ต่อหน่วย{symbol.startsWith('SCB') ? ' หรือกด Auto (ดึงจาก SCBAM)' : ''}</span>}
+                  : <span className="text-slate-400">กรอก NAV ต่อหน่วย{symbol ? ' หรือกด Auto' : ''}</span>}
               {manualPrice && qtyNum > 0 && (
                 <span className="ml-1 text-blue-500">· มูลค่าปัจจุบัน = {formatTHB(parseFloat(manualPrice) * qtyNum)}</span>
               )}

@@ -9,6 +9,10 @@ export default async function handler(req, res) {
     if (result) return res.status(200).json(result)
   }
 
+  // Try Yuanta for all other Thai mutual funds (server-side rendered)
+  const yuantaResult = await fetchYuantaNav(symbol)
+  if (yuantaResult) return res.status(200).json(yuantaResult)
+
   return res.status(404).json({ error: `ไม่พบ NAV อัตโนมัติสำหรับ ${symbol} — กรุณากรอกเอง` })
 }
 
@@ -47,6 +51,27 @@ async function fetchFromSetdatenav(symbol) {
         }
       }
     }
+  } catch {}
+  return null
+}
+
+async function fetchYuantaNav(symbol) {
+  try {
+    const r = await fetch(`https://mutualfund.yuanta.co.th/fund/${symbol}/`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    })
+    if (!r.ok) return null
+    const html = await r.text()
+
+    const navMatch = html.match(/มูลค่าหน่วยลงทุน[\s\S]{0,200}?([\d]+\.[\d]+)\s*บาท/)
+    if (!navMatch) return null
+    const nav = parseFloat(navMatch[1])
+    if (isNaN(nav) || nav <= 0) return null
+
+    const dateMatch = html.match(/ณ\s*วันที่\s*([^\n<]{4,20})/)
+    const date = dateMatch ? dateMatch[1].trim() : null
+
+    return { nav, date, source: 'Yuanta', symbol }
   } catch {}
   return null
 }

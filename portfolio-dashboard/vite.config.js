@@ -49,6 +49,24 @@ async function fetchFromSetdategf(symbol) {
   return null
 }
 
+async function fetchYuantaNav(symbol) {
+  try {
+    const r = await fetch(`https://mutualfund.yuanta.co.th/fund/${symbol}/`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    })
+    if (!r.ok) return null
+    const html = await r.text()
+    const navMatch = html.match(/มูลค่าหน่วยลงทุน[\s\S]{0,200}?([\d]+\.[\d]+)\s*บาท/)
+    if (!navMatch) return null
+    const nav = parseFloat(navMatch[1])
+    if (isNaN(nav) || nav <= 0) return null
+    const dateMatch = html.match(/ณ\s*วันที่\s*([^\n<]{4,20})/)
+    const date = dateMatch ? dateMatch[1].trim() : null
+    return { nav, date, source: 'Yuanta', symbol }
+  } catch {}
+  return null
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -99,6 +117,7 @@ export default defineConfig({
           }
           let result = null
           if (symbol.startsWith('SCB')) result = await fetchSCBAMNav(symbol)
+          if (!result) result = await fetchYuantaNav(symbol)
           if (result) {
             res.statusCode = 200
             res.end(JSON.stringify(result))
