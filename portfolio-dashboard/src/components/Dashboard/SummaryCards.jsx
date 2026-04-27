@@ -5,14 +5,14 @@ import { Wallet, TrendingUp, TrendingDown, Activity } from 'lucide-react'
 
 function Card({ icon: Icon, iconBg, label, main, sub, subColor }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm dark:shadow-none">
-      <div className="flex items-start justify-between gap-3">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-5 shadow-sm dark:shadow-none">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{label}</p>
-          <p className="text-xl font-bold text-slate-900 dark:text-white truncate">{main}</p>
+          <p className="text-base sm:text-xl font-bold text-slate-900 dark:text-white truncate">{main}</p>
           {sub && <p className={`text-xs mt-1 font-medium ${subColor}`}>{sub}</p>}
         </div>
-        <div className={`p-2.5 rounded-xl shrink-0 ${iconBg}`}>
+        <div className={`p-2 sm:p-2.5 rounded-xl shrink-0 ${iconBg}`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>

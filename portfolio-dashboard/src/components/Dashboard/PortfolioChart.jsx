@@ -10,8 +10,8 @@ const TIMEFRAMES = [
   { id: '24H', label: '24H', days: 1,    mobileHide: true  },
   { id: '1W',  label: '1W',  days: 7,    mobileHide: true  },
   { id: '1M',  label: '1M',  days: 30,   mobileHide: false },
-  { id: '3M',  label: '3M',  days: 90,   mobileHide: false },
-  { id: '6M',  label: '6M',  days: 180,  mobileHide: false },
+  { id: '3M',  label: '3M',  days: 90,   mobileHide: true  },
+  { id: '6M',  label: '6M',  days: 180,  mobileHide: true  },
   { id: '1Y',  label: '1Y',  days: 365,  mobileHide: false },
   { id: '3Y',  label: '3Y',  days: 1095, mobileHide: true  },
   { id: '5Y',  label: '5Y',  days: 1825, mobileHide: true  },
@@ -130,7 +130,7 @@ export default function PortfolioChart() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                <th className="px-4 py-3 text-left font-semibold">Asset</th>
+                <th className="px-2 sm:px-4 py-3 text-left font-semibold">Asset</th>
                 {TIMEFRAMES.map(tf => (
                   <th key={tf.id} className={`px-3 py-3 text-center font-semibold ${tf.mobileHide ? 'hidden md:table-cell' : ''}`}>{tf.label}</th>
                 ))}
@@ -163,15 +163,15 @@ export default function PortfolioChart() {
                   result.push(
                     <tr key={`${row.symbol}::${row.type}`}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2.5">
+                      <td className="px-2 sm:px-4 py-2.5">
+                        <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
                             style={{ background: `${cfg?.color}22`, color: cfg?.color }}>
                             {row.symbol.slice(0, 2)}
                           </div>
                           <div className="min-w-0">
                             <div className="font-semibold text-slate-900 dark:text-white text-sm leading-tight">{row.symbol}</div>
-                            <div className="text-[11px] text-slate-400 truncate max-w-[90px]">{row.name}</div>
+                            <div className="text-[11px] text-slate-400 truncate max-w-[90px] hidden sm:block">{row.name}</div>
                           </div>
                         </div>
                       </td>
