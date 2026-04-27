@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { usePortfolio } from '../../context/PortfolioContext'
 import { getAssetStats } from '../../utils/assetUtils'
-import { BarChart2, PlusCircle, Trash2, Pencil, Check, X } from 'lucide-react'
+import { BarChart2, PlusCircle, Trash2, Pencil, Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatCompact } from '../../utils/formatters'
 
 function PortfolioItem({ p, isActive, onSelect, onDelete, dispatch, getAssetPriceTHB }) {
@@ -77,46 +77,81 @@ function PortfolioItem({ p, isActive, onSelect, onDelete, dispatch, getAssetPric
   )
 }
 
-export default function Sidebar({ onAddPortfolio }) {
+export default function Sidebar({ isOpen, onToggle, onAddPortfolio }) {
   const { portfolios, activePortfolio, dispatch, getAssetPriceTHB } = usePortfolio()
 
   return (
-    <div className="w-60 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <BarChart2 className="w-4 h-4 text-white" />
-          </div>
-          <div>
+    <div className={`
+      fixed inset-y-0 left-0 z-30 md:relative md:inset-auto md:z-auto
+      bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0
+      transition-all duration-300
+      ${isOpen ? 'w-60 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-12'}
+    `}>
+
+      {/* Toggle button */}
+      <button
+        onClick={onToggle}
+        className="absolute -right-3 top-5 z-10 w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white shadow-sm transition-colors"
+      >
+        {isOpen ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+      </button>
+
+      {/* Header */}
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 overflow-hidden">
+        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
+          <BarChart2 className="w-4 h-4 text-white" />
+        </div>
+        {isOpen && (
+          <div className="min-w-0">
             <div className="text-sm font-bold text-slate-900 dark:text-white">Portfolio</div>
             <div className="text-xs text-slate-400 dark:text-slate-500">by Amy & Rika</div>
           </div>
+        )}
+      </div>
+
+      {/* Portfolio list */}
+      {isOpen && (
+        <>
+          <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-2 mb-3">My Portfolios</p>
+            {portfolios.map(p => (
+              <PortfolioItem
+                key={p.id} p={p}
+                isActive={p.id === activePortfolio?.id}
+                onSelect={() => dispatch({ type: 'SET_ACTIVE', payload: p.id })}
+                onDelete={() => {
+                  if (portfolios.length <= 1) return
+                  if (confirm(`Delete portfolio "${p.name}"?`)) dispatch({ type: 'DELETE_PORTFOLIO', payload: p.id })
+                }}
+                dispatch={dispatch}
+                getAssetPriceTHB={getAssetPriceTHB}
+              />
+            ))}
+          </div>
+
+          <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+            <button onClick={onAddPortfolio}
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white border border-dashed border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 rounded-lg transition-all">
+              <PlusCircle className="w-3.5 h-3.5" /> Add Portfolio
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Collapsed: show portfolio dots */}
+      {!isOpen && (
+        <div className="flex-1 flex flex-col items-center pt-4 gap-2">
+          {portfolios.map(p => (
+            <button
+              key={p.id}
+              onClick={() => dispatch({ type: 'SET_ACTIVE', payload: p.id })}
+              title={p.name}
+              className={`w-2.5 h-2.5 rounded-full transition-all ${p.id === activePortfolio?.id ? 'scale-150' : 'opacity-50 hover:opacity-100'}`}
+              style={{ backgroundColor: p.color }}
+            />
+          ))}
         </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-2 mb-3">My Portfolios</p>
-        {portfolios.map(p => (
-          <PortfolioItem
-            key={p.id} p={p}
-            isActive={p.id === activePortfolio?.id}
-            onSelect={() => dispatch({ type: 'SET_ACTIVE', payload: p.id })}
-            onDelete={() => {
-              if (portfolios.length <= 1) return
-              if (confirm(`Delete portfolio "${p.name}"?`)) dispatch({ type: 'DELETE_PORTFOLIO', payload: p.id })
-            }}
-            dispatch={dispatch}
-            getAssetPriceTHB={getAssetPriceTHB}
-          />
-        ))}
-      </div>
-
-      <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-        <button onClick={onAddPortfolio}
-          className="w-full flex items-center justify-center gap-2 py-2 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white border border-dashed border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 rounded-lg transition-all">
-          <PlusCircle className="w-3.5 h-3.5" /> Add Portfolio
-        </button>
-      </div>
+      )}
     </div>
   )
 }

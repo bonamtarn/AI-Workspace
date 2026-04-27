@@ -14,6 +14,7 @@ import TransactionHistoryModal from './components/Modals/TransactionHistoryModal
 import ImportWalletModal from './components/Modals/ImportWalletModal'
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
   const [showAddPortfolio, setShowAddPortfolio] = useState(false)
   const [showImportWallet, setShowImportWallet] = useState(false)
   const [editingAsset, setEditingAsset] = useState(null)
@@ -24,10 +25,11 @@ export default function App() {
     <ThemeProvider>
       <PortfolioProvider>
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
-          <Sidebar onAddPortfolio={() => setShowAddPortfolio(true)} />
+          {sidebarOpen && <div className="fixed inset-0 z-20 bg-black/40 md:hidden" onClick={() => setSidebarOpen(false)} />}
+          <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(v => !v)} onAddPortfolio={() => setShowAddPortfolio(true)} />
 
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            <Header onAddAsset={() => setEditingAsset({})} onImportWallet={() => setShowImportWallet(true)} />
+            <Header onAddAsset={() => setEditingAsset({})} onImportWallet={() => setShowImportWallet(true)} onToggleSidebar={() => setSidebarOpen(v => !v)} />
 
             <main className="flex-1 overflow-y-auto p-5 space-y-5">
               <SummaryCards />

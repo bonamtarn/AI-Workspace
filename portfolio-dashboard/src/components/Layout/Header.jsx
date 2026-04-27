@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { usePortfolio } from '../../context/PortfolioContext'
 import { STORAGE_KEY } from '../../context/PortfolioContext'
 import { useTheme } from '../../context/ThemeContext'
-import { RefreshCw, PlusCircle, Clock, Download, Upload, Sun, Moon, Wallet } from 'lucide-react'
+import { RefreshCw, PlusCircle, Clock, Download, Upload, Sun, Moon, Wallet, Menu } from 'lucide-react'
 
 function exportData() {
   const raw = localStorage.getItem(STORAGE_KEY)
@@ -16,7 +16,7 @@ function exportData() {
   URL.revokeObjectURL(url)
 }
 
-export default function Header({ onAddAsset, onImportWallet }) {
+export default function Header({ onAddAsset, onImportWallet, onToggleSidebar }) {
   const { activePortfolio, lastUpdated, isRefreshing, refreshPrices, usdToThb } = usePortfolio()
   const { isDark, toggleTheme } = useTheme()
   const fileRef = useRef(null)
@@ -43,20 +43,25 @@ export default function Header({ onAddAsset, onImportWallet }) {
 
   return (
     <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3.5 flex items-center justify-between shrink-0 gap-2">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <h1 className="text-lg font-bold text-slate-900 dark:text-white truncate">{activePortfolio?.name}</h1>
-          <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-transparent whitespace-nowrap">
-            USD/THB ≈ {usdToThb.toFixed(2)}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-          <span className="text-xs text-slate-400 dark:text-slate-500 truncate">
-            {lastUpdated
-              ? `Updated ${lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} · auto-refresh every 60s`
-              : 'Loading prices...'}
-          </span>
+      <div className="flex items-center gap-2 min-w-0">
+        <button onClick={onToggleSidebar} className="md:hidden p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors shrink-0">
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white truncate">{activePortfolio?.name}</h1>
+            <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-transparent whitespace-nowrap">
+              USD/THB ≈ {usdToThb.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+            <span className="text-xs text-slate-400 dark:text-slate-500 truncate">
+              {lastUpdated
+                ? `Updated ${lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} · auto-refresh every 60s`
+                : 'Loading prices...'}
+            </span>
+          </div>
         </div>
       </div>
 

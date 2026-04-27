@@ -7,14 +7,14 @@ import { fetchTVHistory, fetchWMHistory } from '../../services/historyService'
 import { Loader2 } from 'lucide-react'
 
 const TIMEFRAMES = [
-  { id: '24H', label: '24H', days: 1    },
-  { id: '1W',  label: '1W',  days: 7    },
-  { id: '1M',  label: '1M',  days: 30   },
-  { id: '3M',  label: '3M',  days: 90   },
-  { id: '6M',  label: '6M',  days: 180  },
-  { id: '1Y',  label: '1Y',  days: 365  },
-  { id: '3Y',  label: '3Y',  days: 1095 },
-  { id: '5Y',  label: '5Y',  days: 1825 },
+  { id: '24H', label: '24H', days: 1,    mobileHide: true  },
+  { id: '1W',  label: '1W',  days: 7,    mobileHide: true  },
+  { id: '1M',  label: '1M',  days: 30,   mobileHide: false },
+  { id: '3M',  label: '3M',  days: 90,   mobileHide: false },
+  { id: '6M',  label: '6M',  days: 180,  mobileHide: false },
+  { id: '1Y',  label: '1Y',  days: 365,  mobileHide: false },
+  { id: '3Y',  label: '3Y',  days: 1095, mobileHide: true  },
+  { id: '5Y',  label: '5Y',  days: 1825, mobileHide: true  },
 ]
 
 const STABLECOINS = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'USDP', 'FRAX'])
@@ -66,12 +66,13 @@ async function buildReturnRows(assets, usdToThb) {
   }))
 }
 
-function ReturnCell({ value }) {
+function ReturnCell({ value, hide }) {
+  const hideCls = hide ? 'hidden md:table-cell' : ''
   if (value == null)
-    return <td className="px-3 py-3 text-center text-slate-300 dark:text-slate-600 text-xs select-none">—</td>
+    return <td className={`px-3 py-3 text-center text-slate-300 dark:text-slate-600 text-xs select-none ${hideCls}`}>—</td>
   const pos = value >= 0
   return (
-    <td className="px-3 py-3 text-center">
+    <td className={`px-3 py-3 text-center ${hideCls}`}>
       <span className={`text-xs font-semibold tabular-nums ${pos ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
         {formatPercent(value)}
       </span>
@@ -131,7 +132,7 @@ export default function PortfolioChart() {
               <tr className="border-b border-slate-100 dark:border-slate-800 text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 <th className="px-4 py-3 text-left font-semibold">Asset</th>
                 {TIMEFRAMES.map(tf => (
-                  <th key={tf.id} className="px-3 py-3 text-center font-semibold">{tf.label}</th>
+                  <th key={tf.id} className={`px-3 py-3 text-center font-semibold ${tf.mobileHide ? 'hidden md:table-cell' : ''}`}>{tf.label}</th>
                 ))}
               </tr>
             </thead>
@@ -175,7 +176,7 @@ export default function PortfolioChart() {
                         </div>
                       </td>
                       {TIMEFRAMES.map(tf => (
-                        <ReturnCell key={tf.id} value={row.returns[tf.id] ?? null} />
+                        <ReturnCell key={tf.id} value={row.returns[tf.id] ?? null} hide={tf.mobileHide} />
                       ))}
                     </tr>
                   )

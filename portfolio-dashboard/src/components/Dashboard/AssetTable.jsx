@@ -139,19 +139,19 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
             </span>
           </div>
         </td>
-        <td className="px-4 py-3"><PriceCell price={a.price} /></td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3 hidden md:table-cell"><PriceCell price={a.price} /></td>
+        <td className="px-4 py-3 hidden md:table-cell">
           {a.change24h !== null ? (
             <span className={`font-medium ${a.change24h >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
               {formatPercent(a.change24h)}
             </span>
           ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
         </td>
-        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatNumber(a.quantity)}</td>
-        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatTHB(a.avgCostTHB)}</td>
+        <td className="px-4 py-3 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatNumber(a.quantity)}</td>
+        <td className="px-4 py-3 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatTHB(a.avgCostTHB)}</td>
         <td className="px-4 py-3"><ValueCell thbValue={a.value ?? a.cost} /></td>
         <td className="px-4 py-3"><PnL val={a.pnl} pct={a.pnlPct} /></td>
-        <td className="px-4 py-3"><VaultCell vaults={a.subPortfolio} /></td>
+        <td className="px-4 py-3 hidden md:table-cell"><VaultCell vaults={a.subPortfolio} /></td>
         <td className="px-4 py-3"><ActionButtons a={a} /></td>
       </tr>
     )
@@ -174,13 +174,13 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
             </div>
           </div>
         </td>
-        <td className="px-4 py-2.5" />
-        <td className="px-4 py-2.5" />
-        <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-400">{formatNumber(a.quantity)}</td>
-        <td className="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-400">{formatTHB(a.avgCostTHB)}</td>
+        <td className="px-4 py-2.5 hidden md:table-cell" />
+        <td className="px-4 py-2.5 hidden md:table-cell" />
+        <td className="px-4 py-2.5 hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{formatNumber(a.quantity)}</td>
+        <td className="px-4 py-2.5 hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{formatTHB(a.avgCostTHB)}</td>
         <td className="px-4 py-2.5"><ValueCell thbValue={a.value ?? a.cost} /></td>
         <td className="px-4 py-2.5"><PnL val={a.pnl} pct={a.pnlPct} /></td>
-        <td className="px-4 py-2.5" />
+        <td className="px-4 py-2.5 hidden md:table-cell" />
         <td className="px-4 py-2.5"><ActionButtons a={a} /></td>
       </tr>
     )
@@ -227,19 +227,19 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
             </span>
           </div>
         </td>
-        <td className="px-4 py-3"><PriceCell price={first.price} /></td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3 hidden md:table-cell"><PriceCell price={first.price} /></td>
+        <td className="px-4 py-3 hidden md:table-cell">
           {first.change24h !== null ? (
             <span className={`font-medium ${first.change24h >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
               {formatPercent(first.change24h)}
             </span>
           ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
         </td>
-        <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{formatNumber(totalQty)}</td>
-        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatTHB(avgCostTHB)}</td>
+        <td className="px-4 py-3 hidden md:table-cell font-medium text-slate-700 dark:text-slate-300">{formatNumber(totalQty)}</td>
+        <td className="px-4 py-3 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatTHB(avgCostTHB)}</td>
         <td className="px-4 py-3"><ValueCell thbValue={totalValue ?? totalCost} /></td>
         <td className="px-4 py-3"><PnL val={totalPnL} pct={totalPnLPct} /></td>
-        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+        <td className="px-4 py-3 hidden md:table-cell" onClick={e => e.stopPropagation()}>
           <VaultCell vaults={group.map(a => a.subPortfolio)} />
         </td>
         <td className="px-4 py-3" onClick={e => e.stopPropagation()} />
@@ -265,8 +265,18 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 dark:border-slate-800 text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              {['Asset', 'Price', '24h', 'Qty', 'Avg Cost', 'Value (USD / THB)', 'P&L', 'Vault', ''].map((h, i) => (
-                <th key={i} className="px-4 py-3 text-left font-semibold">{h}</th>
+              {[
+                { label: 'Asset',           cls: '' },
+                { label: 'Price',           cls: 'hidden md:table-cell' },
+                { label: '24h',             cls: 'hidden md:table-cell' },
+                { label: 'Qty',             cls: 'hidden md:table-cell' },
+                { label: 'Avg Cost',        cls: 'hidden md:table-cell' },
+                { label: 'Value',           cls: '' },
+                { label: 'P&L',            cls: '' },
+                { label: 'Vault',           cls: 'hidden md:table-cell' },
+                { label: '',               cls: '' },
+              ].map((h, i) => (
+                <th key={i} className={`px-4 py-3 text-left font-semibold ${h.cls}`}>{h.label}</th>
               ))}
             </tr>
           </thead>
