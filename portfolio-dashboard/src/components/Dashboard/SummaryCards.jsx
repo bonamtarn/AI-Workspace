@@ -24,15 +24,16 @@ export default function SummaryCards() {
   const { activePortfolio, getAssetPriceTHB, get24hChange } = usePortfolio()
   if (!activePortfolio) return null
 
-  let totalValue = 0, totalCost = 0, pricedCost = 0, dailyPnL = 0, profitCount = 0, totalRealizedPnL = 0
+  let totalValue = 0, totalCost = 0, pricedCost = 0, dailyPnL = 0, profitCount = 0, totalRealizedPnL = 0, holdingCount = 0
 
   activePortfolio.assets.forEach(a => {
     const stats = getAssetStats(a)
+    totalRealizedPnL += stats.realizedPnL || 0
+    if (stats.quantity <= 0) return
+    holdingCount++
     const price = getAssetPriceTHB(a)
     const cost = stats.avgCostTHB * stats.quantity
     totalCost += cost
-    totalRealizedPnL += stats.realizedPnL || 0
-    // When price is unknown, use cost as value (contributes 0 to P&L)
     const value = price !== null ? price * stats.quantity : cost
     totalValue += value
     if (price !== null) {
@@ -71,7 +72,7 @@ export default function SummaryCards() {
         icon={TrendingUp}
         iconBg={totalRealizedPnL >= 0 ? 'bg-violet-500/20 text-violet-500' : 'bg-red-500/20 text-red-500'}
         label="Realized P&L" main={formatTHB(totalRealizedPnL)}
-        sub={`${profitCount}/${activePortfolio.assets.length} profitable`} subColor="text-slate-400 dark:text-slate-500"
+        sub={`${profitCount}/${holdingCount} profitable`} subColor="text-slate-400 dark:text-slate-500"
       />
     </div>
   )

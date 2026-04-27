@@ -1,7 +1,7 @@
-export function computeAssetStats(transactions) {
+export function computeAssetStats(transactions, initialQty = 0, initialAvgCost = 0) {
   if (!transactions?.length) return null
   const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date))
-  let qty = 0, totalCost = 0, realizedPnL = 0
+  let qty = initialQty, totalCost = initialQty * initialAvgCost, realizedPnL = 0
   for (const tx of sorted) {
     if (tx.type === 'buy') {
       totalCost += tx.quantity * tx.pricePerUnit
@@ -21,6 +21,7 @@ export function computeAssetStats(transactions) {
 }
 
 export function getAssetStats(asset) {
-  if (asset.transactions?.length > 0) return computeAssetStats(asset.transactions)
+  if (asset.transactions?.length > 0)
+    return computeAssetStats(asset.transactions, asset.quantity ?? 0, asset.avgCostTHB ?? 0)
   return { quantity: asset.quantity, avgCostTHB: asset.avgCostTHB, realizedPnL: 0 }
 }

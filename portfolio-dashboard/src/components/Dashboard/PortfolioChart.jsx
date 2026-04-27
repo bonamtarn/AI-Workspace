@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { usePortfolio } from '../../context/PortfolioContext'
+import { getAssetStats } from '../../utils/assetUtils'
 import { ASSET_TYPES } from '../../utils/assetConfig'
 import { formatPercent } from '../../utils/formatters'
 import { fetchTVHistory, fetchWMHistory } from '../../services/historyService'
@@ -84,15 +85,16 @@ export default function PortfolioChart() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
 
-  const assetKey = activePortfolio?.assets?.map(a => `${a.symbol}:${a.type}`).join(',') ?? ''
+  const holdingAssets = activePortfolio?.assets?.filter(a => getAssetStats(a).quantity > 0) ?? []
+  const assetKey = holdingAssets.map(a => `${a.symbol}:${a.type}`).join(',')
 
   useEffect(() => {
-    if (!activePortfolio?.assets?.length) return
+    if (!holdingAssets.length) return
     let cancelled = false
     setLoading(true)
     setError(null)
 
-    buildReturnRows(activePortfolio.assets, usdToThb)
+    buildReturnRows(holdingAssets, usdToThb)
       .then(data => {
         if (!cancelled) {
           setRows(data)
@@ -136,9 +138,11 @@ export default function PortfolioChart() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {(() => {
                 const TYPE_ORDER = Object.keys(ASSET_TYPES)
-                const sorted = [...rows].sort((a, b) =>
-                  TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type)
-                )
+                const sorted = [...rows].sort((a, b) => {
+                  const typeOrder = TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type)
+                  if (typeOrder !== 0) return typeOrder
+                  return a.symbol.localeCompare(b.symbol)
+                })
                 let lastType = null
                 return sorted.flatMap(row => {
                   const cfg = ASSET_TYPES[row.type]

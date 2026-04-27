@@ -11,15 +11,17 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
 
   if (!activePortfolio) return null
 
-  const rows = activePortfolio.assets.map(a => {
-    const stats = getAssetStats(a)
-    const price = getAssetPriceTHB(a)
-    const cost = stats.avgCostTHB * stats.quantity
-    const value = price !== null ? price * stats.quantity : null
-    const pnl = value !== null ? value - cost : null
-    const pnlPct = pnl !== null && cost > 0 ? (pnl / cost) * 100 : null
-    return { ...a, ...stats, price, cost, value, pnl, pnlPct, change24h: get24hChange(a) }
-  })
+  const rows = activePortfolio.assets
+    .map(a => {
+      const stats = getAssetStats(a)
+      const price = getAssetPriceTHB(a)
+      const cost = stats.avgCostTHB * stats.quantity
+      const value = price !== null ? price * stats.quantity : null
+      const pnl = value !== null ? value - cost : null
+      const pnlPct = pnl !== null && cost > 0 ? (pnl / cost) * 100 : null
+      return { ...a, ...stats, price, cost, value, pnl, pnlPct, change24h: get24hChange(a) }
+    })
+    .filter(a => a.quantity > 0)
 
   // Group assets by symbol+type for sub-portfolio display, sorted by type order
   const TYPE_ORDER = Object.keys(ASSET_TYPES)
@@ -32,7 +34,11 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
   })
   groupKeys.sort((a, b) => {
     const ta = a.split('::')[1], tb = b.split('::')[1]
-    return TYPE_ORDER.indexOf(ta) - TYPE_ORDER.indexOf(tb)
+    const typeOrder = TYPE_ORDER.indexOf(ta) - TYPE_ORDER.indexOf(tb)
+    if (typeOrder !== 0) return typeOrder
+    const valA = groups[a].reduce((s, r) => s + (r.value ?? r.cost), 0)
+    const valB = groups[b].reduce((s, r) => s + (r.value ?? r.cost), 0)
+    return valB - valA
   })
 
   const handleDelete = (a) => {

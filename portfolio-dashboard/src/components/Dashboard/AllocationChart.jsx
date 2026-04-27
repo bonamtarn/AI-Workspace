@@ -23,6 +23,7 @@ export default function AllocationChart() {
   const grouped = {}
   activePortfolio.assets.forEach(a => {
     const stats = getAssetStats(a)
+    if (stats.quantity <= 0) return
     const price = getAssetPriceTHB(a)
     const val = (price ?? stats.avgCostTHB) * stats.quantity
     grouped[a.type] = (grouped[a.type] || 0) + val
