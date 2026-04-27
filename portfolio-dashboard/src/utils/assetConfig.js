@@ -38,6 +38,7 @@ export const PRESET_ASSETS = {
   gold: [
     { symbol: 'XAUT', name: 'Tether Gold' },
     { symbol: 'PAXG', name: 'PAX Gold' },
+    { symbol: 'HSH',  name: 'Hua Seng Heng (ทองแท่ง 96.5%)' },
   ],
   stock: [
     { symbol: 'SCB',   name: 'SCB',           yahooSymbol: 'SCB.BK' },

@@ -92,6 +92,32 @@ export default defineConfig({
     {
       name: 'api-dev',
       configureServer(server) {
+        server.middlewares.use('/api/goldprice', async (req, res) => {
+          res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          try {
+            const r = await fetch('https://www.goldtraders.or.th/api/GoldPrices/Latest?readjson=false', {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://www.goldtraders.or.th/',
+                'Accept': 'application/json',
+              },
+            })
+            if (!r.ok) { res.statusCode = 502; return res.end(JSON.stringify({ error: `goldtraders HTTP ${r.status}` })) }
+            const data = await r.json()
+            const price = data?.bL_SellPrice
+            if (!price || isNaN(price) || price <= 0) {
+              res.statusCode = 404
+              return res.end(JSON.stringify({ error: 'ไม่พบราคาทองคำแท่งราคาขายออก — กรุณากรอกเอง' }))
+            }
+            res.statusCode = 200
+            res.end(JSON.stringify({ price, source: 'goldtraders.or.th' }))
+          } catch (e) {
+            res.statusCode = 500
+            res.end(JSON.stringify({ error: e.message }))
+          }
+        })
+
         server.middlewares.use('/api/btcwallet', async (req, res) => {
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Access-Control-Allow-Origin', '*')

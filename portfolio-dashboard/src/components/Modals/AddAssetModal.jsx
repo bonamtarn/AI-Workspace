@@ -3,6 +3,7 @@ import { usePortfolio } from '../../context/PortfolioContext'
 import { ASSET_TYPES, PRESET_ASSETS } from '../../utils/assetConfig'
 import { formatTHB, formatUSD } from '../../utils/formatters'
 import { fetchMutualFundNAV } from '../../services/fundService'
+import { fetchGoldBarSellPrice } from '../../services/goldService'
 import { ModalShell, ModalHeader } from '../ui/Modal'
 import { CurrencyToggle } from '../ui/CurrencyToggle'
 import { usePriceInput } from '../../hooks/usePriceInput'
@@ -21,6 +22,8 @@ export default function AddAssetModal({ asset: editing, onClose }) {
   const [manualPrice, setManualPrice] = useState(editing?.manualPriceTHB?.toString() || '')
   const [navLoading, setNavLoading] = useState(false)
   const [navError, setNavError] = useState(null)
+  const [goldLoading, setGoldLoading] = useState(false)
+  const [goldError, setGoldError] = useState(null)
 
   const { currency, toggleCurrency, qty, handleQty, perUnit, handlePerUnit, total, handleTotal, qtyNum, perUnitNum, perUnitTHB } = usePriceInput({
     usdToThb,
@@ -30,6 +33,20 @@ export default function AddAssetModal({ asset: editing, onClose }) {
 
   const presets = PRESET_ASSETS[type] || []
   const pickPreset = (p) => { setSymbol(p.symbol); setName(p.name); setYahoo(p.yahooSymbol || '') }
+
+  const autoFetchGoldPrice = async () => {
+    setGoldLoading(true)
+    setGoldError(null)
+    try {
+      const { price, source } = await fetchGoldBarSellPrice()
+      setManualPrice(price.toString())
+      setGoldError(`ราคาขายออก ทองแท่ง จาก ${source}`)
+    } catch (e) {
+      setGoldError(e.message)
+    } finally {
+      setGoldLoading(false)
+    }
+  }
 
   const autoFetchNAV = async () => {
     if (!symbol) return
@@ -132,9 +149,35 @@ export default function AddAssetModal({ asset: editing, onClose }) {
 
         {/* Quantity */}
         <div>
-          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Quantity *</label>
+          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+            Quantity * {type === 'gold' && symbol === 'HSH' && <span className="text-slate-400">(บาทน้ำหนัก)</span>}
+          </label>
           <input type="number" value={qty} onChange={e => handleQty(e.target.value)} placeholder="0" step="any" min="0" className={inputCls} />
         </div>
+
+        {/* Gold price auto-fetch (HSH / Thai gold) */}
+        {type === 'gold' && symbol === 'HSH' && (
+          <div>
+            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+              ราคาทองแท่ง ขายออก (THB/บาท) <span className="text-slate-300 dark:text-slate-600">(optional)</span>
+            </label>
+            <div className="flex gap-2">
+              <input type="number" value={manualPrice} onChange={e => setManualPrice(e.target.value)} placeholder="0.00" step="any" min="0" className={inputCls} />
+              <button type="button" onClick={autoFetchGoldPrice} disabled={goldLoading}
+                title="ดึงราคาทองจาก goldtraders.or.th"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/40 text-yellow-700 dark:text-yellow-400 text-xs font-medium hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors disabled:opacity-40 shrink-0">
+                <RefreshCw className={`w-3.5 h-3.5 ${goldLoading ? 'animate-spin' : ''}`} /> Auto
+              </button>
+            </div>
+            <p className="text-xs mt-1">
+              {goldError && !goldError.includes('ไม่พบ') && !goldError.includes('ดึง')
+                ? <span className="text-green-500">{goldError}</span>
+                : goldError
+                  ? <span className="text-red-400">{goldError}</span>
+                  : <span className="text-slate-400">กด Auto เพื่อดึงราคาจาก goldtraders.or.th</span>}
+            </p>
+          </div>
+        )}
 
         {/* Currency toggle */}
         <CurrencyToggle value={currency} onChange={toggleCurrency} usdToThb={usdToThb} label="Cost in:" />

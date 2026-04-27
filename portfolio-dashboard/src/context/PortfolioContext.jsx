@@ -1,8 +1,9 @@
-import { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useReducer, useEffect, useState, useCallback, useRef } from 'react'
 import { fetchCryptoPrices } from '../services/cryptoService'
 import { fetchStockPrices } from '../services/stockService'
 import { fetchUsdToThb } from '../services/fxService'
 import { COINGECKO_IDS } from '../utils/assetConfig'
+import { testAndGetUser, findGist, saveToGist, loadFromGist } from '../services/gistService'
 
 const Ctx = createContext(null)
 export const STORAGE_KEY = 'portfolio_dashboard_v1'
@@ -104,6 +105,8 @@ function reducer(state, action) {
             : p
         ),
       }
+    case 'LOAD_STATE':
+      return action.payload
     default:
       return state
   }
@@ -124,9 +127,58 @@ export function PortfolioProvider({ children }) {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  const [syncToken, setSyncToken] = useState(() => localStorage.getItem('gist_token') || '')
+  const [syncGistId, setSyncGistId] = useState(() => localStorage.getItem('gist_id') || '')
+  const [syncStatus, setSyncStatus] = useState(() => localStorage.getItem('gist_token') ? 'idle' : 'disabled')
+  const [syncedAt, setSyncedAt] = useState(() => parseInt(localStorage.getItem('gist_ts') || '0'))
+  const saveTimerRef = useRef(null)
+  const skipNextSave = useRef(false)
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
+
+  // On mount: pull from gist if newer than local
+  useEffect(() => {
+    if (!syncToken || !syncGistId) return
+    setSyncStatus('syncing')
+    loadFromGist(syncToken, syncGistId)
+      .then(gistData => {
+        const localTs = parseInt(localStorage.getItem('gist_ts') || '0')
+        if ((gistData._syncedAt || 0) > localTs) {
+          const { _syncedAt, ...portfolioData } = gistData
+          skipNextSave.current = true
+          dispatch({ type: 'LOAD_STATE', payload: portfolioData })
+          localStorage.setItem('gist_ts', String(gistData._syncedAt))
+          setSyncedAt(gistData._syncedAt)
+        }
+        setSyncStatus('synced')
+      })
+      .catch(() => setSyncStatus('error'))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced save to gist on every state change
+  useEffect(() => {
+    if (!syncToken) return
+    if (skipNextSave.current) { skipNextSave.current = false; return }
+    clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(async () => {
+      setSyncStatus('syncing')
+      try {
+        const result = await saveToGist(syncToken, syncGistId || null, state)
+        if (!syncGistId && result.id) {
+          setSyncGistId(result.id)
+          localStorage.setItem('gist_id', result.id)
+        }
+        localStorage.setItem('gist_ts', String(result.syncedAt))
+        setSyncedAt(result.syncedAt)
+        setSyncStatus('synced')
+      } catch {
+        setSyncStatus('error')
+      }
+    }, 2500)
+    return () => clearTimeout(saveTimerRef.current)
+  }, [state, syncToken, syncGistId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const allAssets = state.portfolios.flatMap(p => p.assets)
 
@@ -135,16 +187,13 @@ export function PortfolioProvider({ children }) {
     try {
       const cryptoAssets = allAssets.filter(a => a.type === 'crypto' || a.type === 'gold')
       const coinIds = [...new Set(cryptoAssets.map(a => COINGECKO_IDS[a.symbol]).filter(Boolean))]
-
       const stockAssets = allAssets.filter(a => a.type === 'stock' || a.type === 'etf')
       const yahooSymbols = [...new Set(stockAssets.map(a => a.yahooSymbol).filter(Boolean))]
-
       const [cryptoData, stockData, fxRate] = await Promise.all([
         fetchCryptoPrices(coinIds),
         fetchStockPrices(yahooSymbols),
         fetchUsdToThb(),
       ])
-
       setPrices(cryptoData)
       setStockPrices(stockData)
       if (fxRate) setUsdToThb(fxRate)
@@ -152,7 +201,7 @@ export function PortfolioProvider({ children }) {
     } finally {
       setIsRefreshing(false)
     }
-  }, [allAssets.map(a => a.id).join(',')])
+  }, [allAssets.map(a => a.id).join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     refreshPrices()
@@ -164,6 +213,7 @@ export function PortfolioProvider({ children }) {
     if (asset.type === 'crypto' || asset.type === 'gold') {
       const id = COINGECKO_IDS[asset.symbol]
       if (id && prices[id]) return prices[id].thb ?? (prices[id].usd ? prices[id].usd * usdToThb : null)
+      return asset.manualPriceTHB ?? null
     } else if (asset.type === 'stock' || asset.type === 'etf') {
       const sym = asset.yahooSymbol || asset.symbol
       if (stockPrices[sym]) {
@@ -187,10 +237,75 @@ export function PortfolioProvider({ children }) {
     return null
   }, [prices, stockPrices])
 
+  const connectSync = useCallback(async (token) => {
+    setSyncStatus('syncing')
+    try {
+      const user = await testAndGetUser(token)
+      const existingId = await findGist(token)
+      if (existingId) {
+        const gistData = await loadFromGist(token, existingId)
+        const localTs = parseInt(localStorage.getItem('gist_ts') || '0')
+        if ((gistData._syncedAt || 0) > localTs) {
+          const { _syncedAt, ...portfolioData } = gistData
+          skipNextSave.current = true
+          dispatch({ type: 'LOAD_STATE', payload: portfolioData })
+          localStorage.setItem('gist_ts', String(gistData._syncedAt))
+          setSyncedAt(gistData._syncedAt)
+        } else {
+          const result = await saveToGist(token, existingId, state)
+          localStorage.setItem('gist_ts', String(result.syncedAt))
+          setSyncedAt(result.syncedAt)
+        }
+        setSyncGistId(existingId)
+        localStorage.setItem('gist_id', existingId)
+      }
+      setSyncToken(token)
+      localStorage.setItem('gist_token', token)
+      setSyncStatus('synced')
+      return user
+    } catch (e) {
+      setSyncStatus('error')
+      throw e
+    }
+  }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const disconnectSync = useCallback(() => {
+    setSyncToken('')
+    setSyncGistId('')
+    setSyncStatus('disabled')
+    setSyncedAt(0)
+    localStorage.removeItem('gist_token')
+    localStorage.removeItem('gist_id')
+    localStorage.removeItem('gist_ts')
+  }, [])
+
+  const syncNow = useCallback(async () => {
+    if (!syncToken) return
+    setSyncStatus('syncing')
+    try {
+      const result = await saveToGist(syncToken, syncGistId || null, state)
+      if (!syncGistId && result.id) {
+        setSyncGistId(result.id)
+        localStorage.setItem('gist_id', result.id)
+      }
+      localStorage.setItem('gist_ts', String(result.syncedAt))
+      setSyncedAt(result.syncedAt)
+      setSyncStatus('synced')
+    } catch {
+      setSyncStatus('error')
+    }
+  }, [syncToken, syncGistId, state]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const activePortfolio = state.portfolios.find(p => p.id === state.activeId) ?? state.portfolios[0]
 
   return (
-    <Ctx.Provider value={{ portfolios: state.portfolios, activePortfolio, dispatch, prices, stockPrices, lastUpdated, isRefreshing, refreshPrices, getAssetPriceTHB, get24hChange, usdToThb }}>
+    <Ctx.Provider value={{
+      portfolios: state.portfolios, activePortfolio, dispatch,
+      prices, stockPrices, lastUpdated, isRefreshing, refreshPrices,
+      getAssetPriceTHB, get24hChange, usdToThb,
+      syncStatus, syncedAt, syncGistId, isSyncEnabled: !!syncToken,
+      connectSync, disconnectSync, syncNow,
+    }}>
       {children}
     </Ctx.Provider>
   )

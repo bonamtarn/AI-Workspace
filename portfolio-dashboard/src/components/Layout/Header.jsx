@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { usePortfolio } from '../../context/PortfolioContext'
 import { STORAGE_KEY } from '../../context/PortfolioContext'
 import { useTheme } from '../../context/ThemeContext'
-import { RefreshCw, PlusCircle, Clock, Download, Upload, Sun, Moon, Wallet, Menu } from 'lucide-react'
+import { RefreshCw, PlusCircle, Clock, Download, Upload, Sun, Moon, Wallet, Menu, Cloud } from 'lucide-react'
 
 function exportData() {
   const raw = localStorage.getItem(STORAGE_KEY)
@@ -16,8 +16,8 @@ function exportData() {
   URL.revokeObjectURL(url)
 }
 
-export default function Header({ onAddAsset, onImportWallet, onToggleSidebar }) {
-  const { activePortfolio, lastUpdated, isRefreshing, refreshPrices, usdToThb } = usePortfolio()
+export default function Header({ onAddAsset, onImportWallet, onToggleSidebar, onOpenSync }) {
+  const { activePortfolio, lastUpdated, isRefreshing, refreshPrices, usdToThb, syncStatus, isSyncEnabled } = usePortfolio()
   const { isDark, toggleTheme } = useTheme()
   const fileRef = useRef(null)
 
@@ -66,6 +66,17 @@ export default function Header({ onAddAsset, onImportWallet, onToggleSidebar }) 
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <button onClick={onOpenSync} title="Cloud Sync" className={`${btnCls} relative`}>
+          <Cloud className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Sync</span>
+          <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-slate-900 ${
+            !isSyncEnabled ? 'bg-slate-300 dark:bg-slate-600' :
+            syncStatus === 'synced' ? 'bg-green-400' :
+            syncStatus === 'syncing' ? 'bg-blue-400 animate-pulse' :
+            syncStatus === 'error' ? 'bg-red-400' : 'bg-slate-400'
+          }`} />
+        </button>
+
         <button onClick={exportData} title="Export portfolio data" className={btnCls}>
           <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export</span>
         </button>

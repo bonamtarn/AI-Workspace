@@ -12,11 +12,13 @@ import AddAssetModal from './components/Modals/AddAssetModal'
 import TransactionModal from './components/Modals/TransactionModal'
 import TransactionHistoryModal from './components/Modals/TransactionHistoryModal'
 import ImportWalletModal from './components/Modals/ImportWalletModal'
+import SyncModal from './components/Modals/SyncModal'
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768)
   const [showAddPortfolio, setShowAddPortfolio] = useState(false)
   const [showImportWallet, setShowImportWallet] = useState(false)
+  const [showSync, setShowSync] = useState(false)
   const [editingAsset, setEditingAsset] = useState(null)
   const [txAsset, setTxAsset] = useState(null)
   const [historyAsset, setHistoryAsset] = useState(null)
@@ -29,7 +31,7 @@ export default function App() {
           <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(v => !v)} onAddPortfolio={() => setShowAddPortfolio(true)} />
 
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            <Header onAddAsset={() => setEditingAsset({})} onImportWallet={() => setShowImportWallet(true)} onToggleSidebar={() => setSidebarOpen(v => !v)} />
+            <Header onAddAsset={() => setEditingAsset({})} onImportWallet={() => setShowImportWallet(true)} onToggleSidebar={() => setSidebarOpen(v => !v)} onOpenSync={() => setShowSync(true)} />
 
             <main className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5">
               <SummaryCards />
@@ -48,6 +50,7 @@ export default function App() {
           </div>
         </div>
 
+        {showSync && <SyncModal onClose={() => setShowSync(false)} />}
         {showAddPortfolio && <AddPortfolioModal onClose={() => setShowAddPortfolio(false)} />}
         {showImportWallet && <ImportWalletModal onClose={() => setShowImportWallet(false)} />}
         {editingAsset !== null && (

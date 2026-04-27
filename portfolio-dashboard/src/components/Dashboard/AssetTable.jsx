@@ -76,7 +76,7 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
     )
   }
 
-  const PnL = ({ val, pct }) => {
+  const PnL = ({ val }) => {
     if (val === null) return <span className="text-slate-300 dark:text-slate-600 text-sm">—</span>
     const pos = val >= 0
     const Icon = pos ? TrendingUp : TrendingDown
@@ -87,8 +87,17 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
           <span className="text-xs sm:text-sm font-medium">{formatUSD(val / usdToThb)}</span>
         </div>
         <span className="text-xs opacity-75 hidden sm:block">{formatTHB(val)}</span>
-        {pct !== null && <span className="text-xs opacity-75">{formatPercent(pct)}</span>}
       </div>
+    )
+  }
+
+  const PnLPct = ({ pct }) => {
+    if (pct === null) return <span className="text-slate-300 dark:text-slate-600 text-sm">—</span>
+    const pos = pct >= 0
+    return (
+      <span className={`text-sm font-semibold tabular-nums ${pos ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+        {pos ? '+' : ''}{formatPercent(pct)}
+      </span>
     )
   }
 
@@ -150,7 +159,8 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatNumber(a.quantity)}</td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatTHB(a.avgCostTHB)}</td>
         <td className="px-2 sm:px-4 py-2.5"><ValueCell thbValue={a.value ?? a.cost} /></td>
-        <td className="px-2 sm:px-4 py-2.5"><PnL val={a.pnl} pct={a.pnlPct} /></td>
+        <td className="px-2 sm:px-4 py-2.5"><PnL val={a.pnl} /></td>
+        <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><PnLPct pct={a.pnlPct} /></td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell"><VaultCell vaults={a.subPortfolio} /></td>
         <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><ActionButtons a={a} /></td>
       </tr>
@@ -179,7 +189,8 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{formatNumber(a.quantity)}</td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{formatTHB(a.avgCostTHB)}</td>
         <td className="px-2 sm:px-4 py-2.5"><ValueCell thbValue={a.value ?? a.cost} /></td>
-        <td className="px-2 sm:px-4 py-2.5"><PnL val={a.pnl} pct={a.pnlPct} /></td>
+        <td className="px-2 sm:px-4 py-2.5"><PnL val={a.pnl} /></td>
+        <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><PnLPct pct={a.pnlPct} /></td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell" />
         <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><ActionButtons a={a} /></td>
       </tr>
@@ -239,7 +250,8 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell font-medium text-slate-700 dark:text-slate-300">{formatNumber(totalQty)}</td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatTHB(avgCostTHB)}</td>
         <td className="px-2 sm:px-4 py-2.5"><ValueCell thbValue={totalValue ?? totalCost} /></td>
-        <td className="px-2 sm:px-4 py-2.5"><PnL val={totalPnL} pct={totalPnLPct} /></td>
+        <td className="px-2 sm:px-4 py-2.5"><PnL val={totalPnL} /></td>
+        <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><PnLPct pct={totalPnLPct} /></td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell" onClick={e => e.stopPropagation()}>
           <VaultCell vaults={group.map(a => a.subPortfolio)} />
         </td>
@@ -274,6 +286,7 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
                 { label: 'Avg Cost',        cls: 'hidden md:table-cell' },
                 { label: 'Value',           cls: '' },
                 { label: 'P&L',            cls: '' },
+                { label: 'P&L %',          cls: 'hidden sm:table-cell' },
                 { label: 'Vault',           cls: 'hidden md:table-cell' },
                 { label: '',               cls: 'hidden sm:table-cell' },
               ].map((h, i) => (
@@ -292,7 +305,7 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
                   lastType = type
                   rows.push(
                     <tr key={`header-${type}`} className="bg-slate-50 dark:bg-slate-800/50">
-                      <td colSpan={9} className="px-4 py-1.5">
+                      <td colSpan={10} className="px-4 py-1.5">
                         <span className={`text-[11px] font-semibold tracking-widest uppercase ${cfg?.bgColor} px-2 py-0.5 rounded-full`}>
                           {cfg?.label}
                         </span>
