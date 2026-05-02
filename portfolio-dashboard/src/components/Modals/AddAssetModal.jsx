@@ -10,31 +10,69 @@ import { usePriceInput } from '../../hooks/usePriceInput'
 import { inputCls, inputAltCls } from '../../utils/styles'
 import { RefreshCw } from 'lucide-react'
 
+const GOLD_BAHT_TO_GRAM = 15.244
+
 export default function AddAssetModal({ asset: editing, onClose }) {
   const { activePortfolio, dispatch, usdToThb } = usePortfolio()
   const isEdit = !!editing
+  const editingIsHSH = editing?.symbol === 'HSH'
 
   const [type, setType] = useState(editing?.type || 'crypto')
   const [symbol, setSymbol] = useState(editing?.symbol || '')
   const [name, setName] = useState(editing?.name || '')
   const [yahoo, setYahoo] = useState(editing?.yahooSymbol || '')
   const [subPortfolio, setSubPortfolio] = useState(editing?.subPortfolio || '')
-  const [manualPrice, setManualPrice] = useState(editing?.manualPriceTHB?.toString() || '')
+  const [manualPrice, setManualPrice] = useState(() => {
+    if (!editing?.manualPriceTHB) return ''
+    return editingIsHSH
+      ? (editing.manualPriceTHB * GOLD_BAHT_TO_GRAM).toFixed(2)
+      : editing.manualPriceTHB.toString()
+  })
   const [navLoading, setNavLoading] = useState(false)
   const [navError, setNavError] = useState(null)
   const [goldLoading, setGoldLoading] = useState(false)
   const [goldError, setGoldError] = useState(null)
 
+  // HSH-specific states (qty in selected unit, cost always THB/บาทน้ำหนัก)
+  const [goldUnit, setGoldUnit] = useState('baht')
+  const [goldQty, setGoldQty] = useState(() =>
+    editingIsHSH ? (editing.quantity / GOLD_BAHT_TO_GRAM).toFixed(4).replace(/\.?0+$/, '') : ''
+  )
+  const [goldCostPerBaht, setGoldCostPerBaht] = useState(() =>
+    editingIsHSH ? (editing.avgCostTHB * GOLD_BAHT_TO_GRAM).toFixed(2) : ''
+  )
+
+  // usePriceInput for non-HSH assets
   const { currency, toggleCurrency, qty, handleQty, perUnit, handlePerUnit, total, handleTotal, qtyNum, perUnitNum, perUnitTHB } = usePriceInput({
     usdToThb,
-    initialQty: editing?.quantity?.toString() || '',
-    initialPerUnit: editing?.avgCostTHB?.toString() || '',
+    initialQty: editingIsHSH ? '' : (editing?.quantity?.toString() || ''),
+    initialPerUnit: editingIsHSH ? '' : (editing?.avgCostTHB?.toString() || ''),
   })
+
+  const isHSH = type === 'gold' && symbol === 'HSH'
+
+  // HSH computed values
+  const goldQtyNum = parseFloat(goldQty) || 0
+  const goldCostNum = parseFloat(goldCostPerBaht) || 0
+  const goldQtyGrams = goldUnit === 'baht' ? goldQtyNum * GOLD_BAHT_TO_GRAM : goldQtyNum
+  const goldTotalTHB = goldUnit === 'baht'
+    ? goldQtyNum * goldCostNum
+    : (goldQtyNum / GOLD_BAHT_TO_GRAM) * goldCostNum
+
+  const handleGoldUnitChange = (newUnit) => {
+    if (newUnit === goldUnit) return
+    const num = parseFloat(goldQty) || 0
+    if (num > 0) {
+      const converted = newUnit === 'gram'
+        ? (num * GOLD_BAHT_TO_GRAM).toFixed(4).replace(/\.?0+$/, '')
+        : (num / GOLD_BAHT_TO_GRAM).toFixed(4).replace(/\.?0+$/, '')
+      setGoldQty(converted)
+    }
+    setGoldUnit(newUnit)
+  }
 
   const presets = PRESET_ASSETS[type] || []
   const pickPreset = (p) => { setSymbol(p.symbol); setName(p.name); setYahoo(p.yahooSymbol || '') }
-
-  const GOLD_BAHT_TO_GRAM = 15.244
 
   const autoFetchGoldPrice = async () => {
     setGoldLoading(true)
@@ -65,18 +103,31 @@ export default function AddAssetModal({ asset: editing, onClose }) {
     }
   }
 
-  const isValid = symbol && qtyNum > 0 && perUnitTHB > 0
+  const isValid = isHSH
+    ? symbol && goldQtyNum > 0 && goldCostNum > 0
+    : symbol && qtyNum > 0 && perUnitTHB > 0
 
   const submit = (e) => {
     e.preventDefault()
     if (!isValid) return
-    const asset = {
+    const asset = isHSH ? {
+      id: editing?.id || `a-${Date.now()}`,
+      symbol: 'HSH',
+      name: name.trim() || 'ฮั่วเซ่งเฮง',
+      type,
+      quantity: goldQtyGrams,
+      avgCostTHB: goldCostNum / GOLD_BAHT_TO_GRAM,
+      costCurrency: 'THB',
+      ...(manualPrice && { manualPriceTHB: parseFloat(manualPrice) / GOLD_BAHT_TO_GRAM }),
+      ...(subPortfolio.trim() && { subPortfolio: subPortfolio.trim() }),
+      ...(editing?.transactions && { transactions: editing.transactions }),
+    } : {
       id: editing?.id || `a-${Date.now()}`,
       symbol: symbol.trim().toUpperCase(),
       name: name.trim() || symbol.trim(),
       type, quantity: qtyNum, avgCostTHB: perUnitTHB, costCurrency: currency,
       ...(yahoo && { yahooSymbol: yahoo.trim() }),
-      ...(manualPrice && { manualPriceTHB: (type === 'gold' && symbol === 'HSH') ? parseFloat(manualPrice) / GOLD_BAHT_TO_GRAM : parseFloat(manualPrice) }),
+      ...(manualPrice && { manualPriceTHB: parseFloat(manualPrice) }),
       ...(subPortfolio.trim() && { subPortfolio: subPortfolio.trim() }),
       ...(editing?.transactions && { transactions: editing.transactions }),
     }
@@ -149,16 +200,30 @@ export default function AddAssetModal({ asset: editing, onClose }) {
           </div>
         )}
 
-        {/* Quantity */}
-        <div>
-          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
-            Quantity * {type === 'gold' && symbol === 'HSH' && <span className="text-slate-400">(กรัม)</span>}
-          </label>
-          <input type="number" value={qty} onChange={e => handleQty(e.target.value)} placeholder="0" step="any" min="0" className={inputCls} />
-        </div>
+        {/* Quantity — HSH has unit toggle */}
+        {isHSH ? (
+          <div className="space-y-2">
+            <label className="block text-xs text-slate-500 dark:text-slate-400">Quantity *</label>
+            <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium">
+              {[['baht', 'บาทน้ำหนัก (15.244g)'], ['gram', 'กรัม']].map(([val, label]) => (
+                <button key={val} type="button" onClick={() => handleGoldUnitChange(val)}
+                  className={`flex-1 py-2 transition-colors ${goldUnit === val ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input type="number" value={goldQty} onChange={e => setGoldQty(e.target.value)}
+              placeholder="0" step="any" min="0" className={inputCls} />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Quantity *</label>
+            <input type="number" value={qty} onChange={e => handleQty(e.target.value)} placeholder="0" step="any" min="0" className={inputCls} />
+          </div>
+        )}
 
-        {/* Gold price auto-fetch (HSH / Thai gold) */}
-        {type === 'gold' && symbol === 'HSH' && (
+        {/* Gold price auto-fetch (HSH) */}
+        {isHSH && (
           <div>
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
               ราคาทองแท่ง ขายออก (THB/บาทน้ำหนัก) <span className="text-slate-300 dark:text-slate-600">(optional)</span>
@@ -181,23 +246,39 @@ export default function AddAssetModal({ asset: editing, onClose }) {
           </div>
         )}
 
-        {/* Currency toggle */}
-        <CurrencyToggle value={currency} onChange={toggleCurrency} usdToThb={usdToThb} label="Cost in:" />
-
-        {/* Cost per unit / Total */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Cost / Unit ({currency})</label>
-            <input type="number" value={perUnit} onChange={e => handlePerUnit(e.target.value)} placeholder="0.00" step="any" min="0" className={inputCls} />
+        {/* Cost inputs — HSH: always THB/บาทน้ำหนัก | others: currency toggle + per-unit/total */}
+        {isHSH ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">ต้นทุน / บาทน้ำหนัก (THB)</label>
+              <input type="number" value={goldCostPerBaht} onChange={e => setGoldCostPerBaht(e.target.value)}
+                placeholder="0.00" step="any" min="0" className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">ต้นทุนรวม (THB)</label>
+              <div className={`${inputAltCls} text-slate-600 dark:text-slate-400 flex items-center`}>
+                {goldTotalTHB > 0 ? formatTHB(goldTotalTHB) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
-              Total Investment ({currency}) <span className="text-slate-300 dark:text-slate-600">← or enter here</span>
-            </label>
-            <input type="number" value={total} onChange={e => handleTotal(e.target.value)} placeholder="0.00" step="any" min="0" className={inputAltCls} />
-          </div>
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-600 -mt-2">Fill either field — the other is calculated automatically</p>
+        ) : (
+          <>
+            <CurrencyToggle value={currency} onChange={toggleCurrency} usdToThb={usdToThb} label="Cost in:" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Cost / Unit ({currency})</label>
+                <input type="number" value={perUnit} onChange={e => handlePerUnit(e.target.value)} placeholder="0.00" step="any" min="0" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+                  Total Investment ({currency}) <span className="text-slate-300 dark:text-slate-600">← or enter here</span>
+                </label>
+                <input type="number" value={total} onChange={e => handleTotal(e.target.value)} placeholder="0.00" step="any" min="0" className={inputAltCls} />
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 dark:text-slate-600 -mt-2">Fill either field — the other is calculated automatically</p>
+          </>
+        )}
 
         {/* Manual NAV */}
         {type === 'mutual_fund' && (
@@ -233,11 +314,20 @@ export default function AddAssetModal({ asset: editing, onClose }) {
           <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg px-4 py-3 flex items-center justify-between border border-slate-100 dark:border-transparent">
             <span className="text-xs text-slate-500">Total Cost</span>
             <div className="text-right">
-              <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                {currency === 'USD' ? formatUSD(qtyNum * perUnitNum) : formatTHB(qtyNum * perUnitNum)}
-              </div>
-              {currency === 'USD' && (
-                <div className="text-xs text-slate-400 mt-0.5">{formatTHB(qtyNum * perUnitTHB)}</div>
+              {isHSH ? (
+                <>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">{formatTHB(goldTotalTHB)}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{formatUSD(goldTotalTHB / usdToThb)}</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {currency === 'USD' ? formatUSD(qtyNum * perUnitNum) : formatTHB(qtyNum * perUnitNum)}
+                  </div>
+                  {currency === 'USD' && (
+                    <div className="text-xs text-slate-400 mt-0.5">{formatTHB(qtyNum * perUnitTHB)}</div>
+                  )}
+                </>
               )}
             </div>
           </div>

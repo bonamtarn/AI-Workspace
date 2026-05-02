@@ -9,6 +9,8 @@ import { usePriceInput } from '../../hooks/usePriceInput'
 import { inputBase, inputAltCls } from '../../utils/styles'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 
+const GOLD_BAHT_TO_GRAM = 15.244
+
 export default function TransactionModal({ asset, onClose }) {
   const { activePortfolio, dispatch, getAssetPriceTHB, usdToThb } = usePortfolio()
   const [txType, setTxType] = useState('buy')
@@ -17,20 +19,62 @@ export default function TransactionModal({ asset, onClose }) {
 
   const stats = getAssetStats(asset)
   const cfg = ASSET_TYPES[asset.type]
-  const currentPrice = getAssetPriceTHB(asset)
+  const currentPrice = getAssetPriceTHB(asset) // THB/gram for HSH
   const isHSH = asset.symbol === 'HSH'
-  const qtyUnit = isHSH ? 'กรัม' : asset.symbol
 
+  // HSH-specific states
+  const [goldUnit, setGoldUnit] = useState('baht')
+  const [goldQty, setGoldQty] = useState('')
+  const [goldCostPerBaht, setGoldCostPerBaht] = useState(() =>
+    currentPrice ? (currentPrice * GOLD_BAHT_TO_GRAM).toFixed(2) : ''
+  )
+
+  // non-HSH price input
   const { currency, toggleCurrency, qty, handleQty, perUnit, handlePerUnit, total, handleTotal, qtyNum, perUnitNum, perUnitTHB } = usePriceInput({
     usdToThb,
-    initialPerUnit: currentPrice ? currentPrice.toFixed(2) : '',
+    initialPerUnit: (!isHSH && currentPrice) ? currentPrice.toFixed(2) : '',
   })
 
-  const isValid = qtyNum > 0 && perUnitTHB > 0
-  const isSellExceed = txType === 'sell' && qtyNum > stats.quantity
+  // HSH computed values
+  const goldQtyNum = parseFloat(goldQty) || 0
+  const goldCostNum = parseFloat(goldCostPerBaht) || 0
+  const goldQtyGrams = goldUnit === 'baht' ? goldQtyNum * GOLD_BAHT_TO_GRAM : goldQtyNum
+  const goldCostPerGram = goldCostNum / GOLD_BAHT_TO_GRAM
+  const goldTotalTHB = goldUnit === 'baht'
+    ? goldQtyNum * goldCostNum
+    : (goldQtyNum / GOLD_BAHT_TO_GRAM) * goldCostNum
 
-  const newAvgCost = () => {
+  const handleGoldUnitChange = (newUnit) => {
+    if (newUnit === goldUnit) return
+    const num = parseFloat(goldQty) || 0
+    if (num > 0) {
+      const converted = newUnit === 'gram'
+        ? (num * GOLD_BAHT_TO_GRAM).toFixed(4).replace(/\.?0+$/, '')
+        : (num / GOLD_BAHT_TO_GRAM).toFixed(4).replace(/\.?0+$/, '')
+      setGoldQty(converted)
+    }
+    setGoldUnit(newUnit)
+  }
+
+  // Display holding in selected unit for HSH
+  const holdingGrams = stats.quantity
+  const holdingDisplay = goldUnit === 'baht'
+    ? formatNumber(holdingGrams / GOLD_BAHT_TO_GRAM)
+    : formatNumber(holdingGrams)
+  const holdingUnit = goldUnit === 'baht' ? 'บาทน้ำหนัก' : 'กรัม'
+
+  const isValid = isHSH ? goldQtyNum > 0 && goldCostNum > 0 : qtyNum > 0 && perUnitTHB > 0
+  const isSellExceed = isHSH
+    ? txType === 'sell' && goldQtyGrams > holdingGrams
+    : txType === 'sell' && qtyNum > stats.quantity
+
+  const newAvgCostTHB = () => {
     if (txType === 'sell' || !isValid) return null
+    if (isHSH) {
+      const totalCost = stats.avgCostTHB * holdingGrams + goldQtyGrams * goldCostPerGram
+      const totalGrams = holdingGrams + goldQtyGrams
+      return totalGrams > 0 ? (totalCost / totalGrams) * GOLD_BAHT_TO_GRAM : 0
+    }
     const totalCost = stats.avgCostTHB * stats.quantity + qtyNum * perUnitTHB
     const totalQ = stats.quantity + qtyNum
     return totalQ > 0 ? totalCost / totalQ : 0
@@ -39,13 +83,10 @@ export default function TransactionModal({ asset, onClose }) {
   const submit = (e) => {
     e.preventDefault()
     if (!isValid || isSellExceed) return
-    dispatch({
-      type: 'ADD_TRANSACTION',
-      payload: {
-        portfolioId: activePortfolio.id, assetId: asset.id,
-        transaction: { id: `tx-${Date.now()}`, type: txType, quantity: qtyNum, pricePerUnit: perUnitTHB, date, note: note.trim() },
-      },
-    })
+    const transaction = isHSH
+      ? { id: `tx-${Date.now()}`, type: txType, quantity: goldQtyGrams, pricePerUnit: goldCostPerGram, date, note: note.trim() }
+      : { id: `tx-${Date.now()}`, type: txType, quantity: qtyNum, pricePerUnit: perUnitTHB, date, note: note.trim() }
+    dispatch({ type: 'ADD_TRANSACTION', payload: { portfolioId: activePortfolio.id, assetId: asset.id, transaction } })
     onClose()
   }
 
@@ -71,18 +112,22 @@ export default function TransactionModal({ asset, onClose }) {
         <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-transparent">
           <div>
             <span className="text-slate-400">Holding</span>
-            <div className="text-slate-900 dark:text-white font-semibold mt-0.5">{formatNumber(stats.quantity)} {qtyUnit}</div>
+            <div className="text-slate-900 dark:text-white font-semibold mt-0.5">
+              {holdingDisplay} {holdingUnit}
+            </div>
           </div>
           <div>
-            <span className="text-slate-400">Avg Cost / Unit</span>
-            <div className="text-slate-900 dark:text-white font-semibold mt-0.5">{formatTHB(stats.avgCostTHB)}</div>
+            <span className="text-slate-400">Avg Cost {isHSH ? '/ บาทน้ำหนัก' : '/ Unit'}</span>
+            <div className="text-slate-900 dark:text-white font-semibold mt-0.5">
+              {formatTHB(isHSH ? stats.avgCostTHB * GOLD_BAHT_TO_GRAM : stats.avgCostTHB)}
+            </div>
           </div>
           {currentPrice && (
             <div>
-              <span className="text-slate-400">Current Price</span>
+              <span className="text-slate-400">Current Price {isHSH ? '/ บาทน้ำหนัก' : ''}</span>
               <div className="text-blue-500 dark:text-blue-400 font-semibold mt-0.5">
-                {formatTHB(currentPrice)}
-                <span className="text-xs text-slate-400 font-normal ml-1">({formatUSD(currentPrice / usdToThb)})</span>
+                {formatTHB(isHSH ? currentPrice * GOLD_BAHT_TO_GRAM : currentPrice)}
+                {!isHSH && <span className="text-xs text-slate-400 font-normal ml-1">({formatUSD(currentPrice / usdToThb)})</span>}
               </div>
             </div>
           )}
@@ -102,33 +147,69 @@ export default function TransactionModal({ asset, onClose }) {
         </div>
 
         {/* Quantity */}
-        <div>
-          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Quantity ({qtyUnit}) *</label>
-          <input type="number" value={qty} onChange={e => handleQty(e.target.value)}
-            placeholder="0" step="any" min="0" autoFocus
-            className={`${inputBase} ${isSellExceed ? 'border-red-400 focus:border-red-500' : 'focus:border-blue-500'}`} />
-          {isSellExceed && <p className="text-xs text-red-500 mt-1">Exceeds holding ({formatNumber(stats.quantity)} {qtyUnit})</p>}
-        </div>
-
-        {/* Currency toggle */}
-        <CurrencyToggle value={currency} onChange={toggleCurrency} usdToThb={usdToThb} />
-
-        {/* Price / Total */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Price / {isHSH ? 'กรัม' : 'Unit'} ({currency})</label>
-            <input type="number" value={perUnit} onChange={e => handlePerUnit(e.target.value)}
-              placeholder="0.00" step="any" min="0" className={inpCls} />
+        {isHSH ? (
+          <div className="space-y-2">
+            <label className="block text-xs text-slate-500 dark:text-slate-400">Quantity *</label>
+            <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium">
+              {[['baht', 'บาทน้ำหนัก (15.244g)'], ['gram', 'กรัม']].map(([val, label]) => (
+                <button key={val} type="button" onClick={() => handleGoldUnitChange(val)}
+                  className={`flex-1 py-2 transition-colors ${goldUnit === val ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input type="number" value={goldQty} onChange={e => setGoldQty(e.target.value)}
+              placeholder="0" step="any" min="0" autoFocus
+              className={`${inputBase} ${isSellExceed ? 'border-red-400 focus:border-red-500' : 'focus:border-blue-500'}`} />
+            {isSellExceed && (
+              <p className="text-xs text-red-500">Exceeds holding ({holdingDisplay} {holdingUnit})</p>
+            )}
           </div>
+        ) : (
           <div>
-            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
-              Total ({currency}) <span className="text-slate-300 dark:text-slate-600">← or enter here</span>
-            </label>
-            <input type="number" value={total} onChange={e => handleTotal(e.target.value)}
-              placeholder="0.00" step="any" min="0" className={inputAltCls} />
+            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Quantity ({asset.symbol}) *</label>
+            <input type="number" value={qty} onChange={e => handleQty(e.target.value)}
+              placeholder="0" step="any" min="0" autoFocus
+              className={`${inputBase} ${isSellExceed ? 'border-red-400 focus:border-red-500' : 'focus:border-blue-500'}`} />
+            {isSellExceed && <p className="text-xs text-red-500 mt-1">Exceeds holding ({formatNumber(stats.quantity)})</p>}
           </div>
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-600 -mt-2">Fill either field — the other is calculated automatically</p>
+        )}
+
+        {/* Price inputs */}
+        {isHSH ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">ราคา / บาทน้ำหนัก (THB)</label>
+              <input type="number" value={goldCostPerBaht} onChange={e => setGoldCostPerBaht(e.target.value)}
+                placeholder="0.00" step="any" min="0" className={inpCls} />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">รวม (THB)</label>
+              <div className={`${inputAltCls} text-slate-600 dark:text-slate-400 flex items-center`}>
+                {goldTotalTHB > 0 ? formatTHB(goldTotalTHB) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <CurrencyToggle value={currency} onChange={toggleCurrency} usdToThb={usdToThb} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Price / Unit ({currency})</label>
+                <input type="number" value={perUnit} onChange={e => handlePerUnit(e.target.value)}
+                  placeholder="0.00" step="any" min="0" className={inpCls} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+                  Total ({currency}) <span className="text-slate-300 dark:text-slate-600">← or enter here</span>
+                </label>
+                <input type="number" value={total} onChange={e => handleTotal(e.target.value)}
+                  placeholder="0.00" step="any" min="0" className={inputAltCls} />
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 dark:text-slate-600 -mt-2">Fill either field — the other is calculated automatically</p>
+          </>
+        )}
 
         {/* Date + Note */}
         <div className="grid grid-cols-2 gap-3">
@@ -151,9 +232,11 @@ export default function TransactionModal({ asset, onClose }) {
               <span className="text-slate-500 dark:text-slate-400">{txType === 'buy' ? 'Buy' : 'Sell'} Amount</span>
               <div className="text-right">
                 <div className="font-semibold text-slate-900 dark:text-white">
-                  {currency === 'USD' ? formatUSD(qtyNum * perUnitNum) : formatTHB(qtyNum * perUnitNum)}
+                  {isHSH
+                    ? formatTHB(goldTotalTHB)
+                    : currency === 'USD' ? formatUSD(qtyNum * perUnitNum) : formatTHB(qtyNum * perUnitNum)}
                 </div>
-                {currency === 'USD' && (
+                {!isHSH && currency === 'USD' && (
                   <div className="text-xs text-slate-400 mt-0.5">{formatTHB(qtyNum * perUnitTHB)}</div>
                 )}
               </div>
@@ -161,20 +244,32 @@ export default function TransactionModal({ asset, onClose }) {
             <div className="flex justify-between">
               <span className="text-slate-500 dark:text-slate-400">Qty after {txType}</span>
               <span className="font-semibold text-slate-900 dark:text-white">
-                {formatNumber(txType === 'buy' ? stats.quantity + qtyNum : stats.quantity - qtyNum)} {qtyUnit}
+                {isHSH ? (() => {
+                  const afterGrams = txType === 'buy' ? holdingGrams + goldQtyGrams : holdingGrams - goldQtyGrams
+                  const afterDisplay = goldUnit === 'baht'
+                    ? formatNumber(afterGrams / GOLD_BAHT_TO_GRAM)
+                    : formatNumber(afterGrams)
+                  return `${afterDisplay} ${holdingUnit}`
+                })() : (
+                  `${formatNumber(txType === 'buy' ? stats.quantity + qtyNum : stats.quantity - qtyNum)} ${asset.symbol}`
+                )}
               </span>
             </div>
-            {txType === 'buy' && newAvgCost() !== null && (
+            {txType === 'buy' && newAvgCostTHB() !== null && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">New Avg Cost</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{formatTHB(newAvgCost())}</span>
+                <span className="text-slate-500 dark:text-slate-400">New Avg Cost {isHSH ? '/ บาทน้ำหนัก' : ''}</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{formatTHB(newAvgCostTHB())}</span>
               </div>
             )}
             {txType === 'sell' && (
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">P&L this trade</span>
-                <span className={`font-semibold ${(perUnitTHB - stats.avgCostTHB) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {formatTHB(qtyNum * (perUnitTHB - stats.avgCostTHB))}
+                <span className={`font-semibold ${isHSH
+                  ? (goldCostPerGram - stats.avgCostTHB) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  : (perUnitTHB - stats.avgCostTHB) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {isHSH
+                    ? formatTHB(goldQtyGrams * (goldCostPerGram - stats.avgCostTHB))
+                    : formatTHB(qtyNum * (perUnitTHB - stats.avgCostTHB))}
                 </span>
               </div>
             )}
