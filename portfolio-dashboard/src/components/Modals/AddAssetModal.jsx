@@ -41,6 +41,12 @@ export default function AddAssetModal({ asset: editing, onClose }) {
   const [goldCostPerBaht, setGoldCostPerBaht] = useState(() =>
     editingIsHSH ? (editing.avgCostTHB * GOLD_BAHT_TO_GRAM).toFixed(2) : ''
   )
+  const [goldTotal, setGoldTotal] = useState(() => {
+    if (!editingIsHSH) return ''
+    const grams = editing.quantity
+    const costPerGram = editing.avgCostTHB
+    return grams > 0 && costPerGram > 0 ? (grams * costPerGram).toFixed(2) : ''
+  })
 
   // usePriceInput for non-HSH assets
   const { currency, toggleCurrency, qty, handleQty, perUnit, handlePerUnit, total, handleTotal, qtyNum, perUnitNum, perUnitTHB } = usePriceInput({
@@ -55,9 +61,35 @@ export default function AddAssetModal({ asset: editing, onClose }) {
   const goldQtyNum = parseFloat(goldQty) || 0
   const goldCostNum = parseFloat(goldCostPerBaht) || 0
   const goldQtyGrams = goldUnit === 'baht' ? goldQtyNum * GOLD_BAHT_TO_GRAM : goldQtyNum
-  const goldTotalTHB = goldUnit === 'baht'
-    ? goldQtyNum * goldCostNum
-    : (goldQtyNum / GOLD_BAHT_TO_GRAM) * goldCostNum
+  const goldTotalTHB = parseFloat(goldTotal) || 0
+
+  const computeGrams = (val, unit) => {
+    const n = parseFloat(val) || 0
+    return unit === 'baht' ? n * GOLD_BAHT_TO_GRAM : n
+  }
+
+  const handleGoldQty = (val) => {
+    setGoldQty(val)
+    const grams = computeGrams(val, goldUnit)
+    const price = parseFloat(goldCostPerBaht) || 0
+    const tot = parseFloat(goldTotal) || 0
+    if (grams > 0) {
+      if (price > 0) setGoldTotal((grams * price / GOLD_BAHT_TO_GRAM).toFixed(2))
+      else if (tot > 0) setGoldCostPerBaht((tot * GOLD_BAHT_TO_GRAM / grams).toFixed(2))
+    }
+  }
+
+  const handleGoldPrice = (val) => {
+    setGoldCostPerBaht(val)
+    const price = parseFloat(val) || 0
+    if (price > 0 && goldQtyGrams > 0) setGoldTotal((goldQtyGrams * price / GOLD_BAHT_TO_GRAM).toFixed(2))
+  }
+
+  const handleGoldTotal = (val) => {
+    setGoldTotal(val)
+    const tot = parseFloat(val) || 0
+    if (tot > 0 && goldQtyGrams > 0) setGoldCostPerBaht((tot * GOLD_BAHT_TO_GRAM / goldQtyGrams).toFixed(2))
+  }
 
   const handleGoldUnitChange = (newUnit) => {
     if (newUnit === goldUnit) return
@@ -104,19 +136,22 @@ export default function AddAssetModal({ asset: editing, onClose }) {
   }
 
   const isValid = isHSH
-    ? symbol && goldQtyNum > 0 && goldCostNum > 0
+    ? symbol && goldQtyNum > 0 && (goldCostNum > 0 || goldTotalTHB > 0)
     : symbol && qtyNum > 0 && perUnitTHB > 0
 
   const submit = (e) => {
     e.preventDefault()
     if (!isValid) return
+    const resolvedCostPerGram = goldCostNum > 0
+      ? goldCostNum / GOLD_BAHT_TO_GRAM
+      : goldTotalTHB > 0 && goldQtyGrams > 0 ? goldTotalTHB / goldQtyGrams : 0
     const asset = isHSH ? {
       id: editing?.id || `a-${Date.now()}`,
       symbol: 'HSH',
       name: name.trim() || 'ฮั่วเซ่งเฮง',
       type,
       quantity: goldQtyGrams,
-      avgCostTHB: goldCostNum / GOLD_BAHT_TO_GRAM,
+      avgCostTHB: resolvedCostPerGram,
       costCurrency: 'THB',
       ...(manualPrice && { manualPriceTHB: parseFloat(manualPrice) / GOLD_BAHT_TO_GRAM }),
       ...(subPortfolio.trim() && { subPortfolio: subPortfolio.trim() }),
@@ -212,7 +247,7 @@ export default function AddAssetModal({ asset: editing, onClose }) {
                 </button>
               ))}
             </div>
-            <input type="number" value={goldQty} onChange={e => setGoldQty(e.target.value)}
+            <input type="number" value={goldQty} onChange={e => handleGoldQty(e.target.value)}
               placeholder="0" step="any" min="0" className={inputCls} />
           </div>
         ) : (
@@ -248,19 +283,23 @@ export default function AddAssetModal({ asset: editing, onClose }) {
 
         {/* Cost inputs — HSH: always THB/บาทน้ำหนัก | others: currency toggle + per-unit/total */}
         {isHSH ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">ต้นทุน / บาทน้ำหนัก (THB)</label>
-              <input type="number" value={goldCostPerBaht} onChange={e => setGoldCostPerBaht(e.target.value)}
-                placeholder="0.00" step="any" min="0" className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">ต้นทุนรวม (THB)</label>
-              <div className={`${inputAltCls} text-slate-600 dark:text-slate-400 flex items-center`}>
-                {goldTotalTHB > 0 ? formatTHB(goldTotalTHB) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">ต้นทุน / บาทน้ำหนัก (THB)</label>
+                <input type="number" value={goldCostPerBaht} onChange={e => handleGoldPrice(e.target.value)}
+                  placeholder="0.00" step="any" min="0" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+                  ต้นทุนรวม (THB) <span className="text-slate-300 dark:text-slate-600">← หรือกรอกที่นี่</span>
+                </label>
+                <input type="number" value={goldTotal} onChange={e => handleGoldTotal(e.target.value)}
+                  placeholder="0.00" step="any" min="0" className={inputAltCls} />
               </div>
             </div>
-          </div>
+            <p className="text-xs text-slate-400 dark:text-slate-600 -mt-2">กรอกช่องใดก็ได้ — อีกช่องจะคำนวณอัตโนมัติ</p>
+          </>
         ) : (
           <>
             <CurrencyToggle value={currency} onChange={toggleCurrency} usdToThb={usdToThb} label="Cost in:" />
