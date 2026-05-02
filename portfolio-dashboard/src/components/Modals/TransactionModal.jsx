@@ -56,12 +56,10 @@ export default function TransactionModal({ asset, onClose }) {
     setGoldUnit(newUnit)
   }
 
-  // Display holding in selected unit for HSH
+  // Holding always displayed in grams for HSH
   const holdingGrams = stats.quantity
-  const holdingDisplay = goldUnit === 'baht'
-    ? formatNumber(holdingGrams / GOLD_BAHT_TO_GRAM)
-    : formatNumber(holdingGrams)
-  const holdingUnit = goldUnit === 'baht' ? 'บาทน้ำหนัก' : 'กรัม'
+  const holdingDisplay = formatNumber(holdingGrams)
+  const holdingUnit = 'กรัม'
 
   const isValid = isHSH ? goldQtyNum > 0 && goldCostNum > 0 : qtyNum > 0 && perUnitTHB > 0
   const isSellExceed = isHSH
@@ -246,10 +244,7 @@ export default function TransactionModal({ asset, onClose }) {
               <span className="font-semibold text-slate-900 dark:text-white">
                 {isHSH ? (() => {
                   const afterGrams = txType === 'buy' ? holdingGrams + goldQtyGrams : holdingGrams - goldQtyGrams
-                  const afterDisplay = goldUnit === 'baht'
-                    ? formatNumber(afterGrams / GOLD_BAHT_TO_GRAM)
-                    : formatNumber(afterGrams)
-                  return `${afterDisplay} ${holdingUnit}`
+                  return `${formatNumber(afterGrams)} กรัม`
                 })() : (
                   `${formatNumber(txType === 'buy' ? stats.quantity + qtyNum : stats.quantity - qtyNum)} ${asset.symbol}`
                 )}
