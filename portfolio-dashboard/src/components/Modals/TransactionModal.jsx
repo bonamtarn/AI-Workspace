@@ -18,6 +18,8 @@ export default function TransactionModal({ asset, onClose }) {
   const stats = getAssetStats(asset)
   const cfg = ASSET_TYPES[asset.type]
   const currentPrice = getAssetPriceTHB(asset)
+  const isHSH = asset.symbol === 'HSH'
+  const qtyUnit = isHSH ? 'กรัม' : asset.symbol
 
   const { currency, toggleCurrency, qty, handleQty, perUnit, handlePerUnit, total, handleTotal, qtyNum, perUnitNum, perUnitTHB } = usePriceInput({
     usdToThb,
@@ -69,7 +71,7 @@ export default function TransactionModal({ asset, onClose }) {
         <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-transparent">
           <div>
             <span className="text-slate-400">Holding</span>
-            <div className="text-slate-900 dark:text-white font-semibold mt-0.5">{formatNumber(stats.quantity)} {asset.symbol}</div>
+            <div className="text-slate-900 dark:text-white font-semibold mt-0.5">{formatNumber(stats.quantity)} {qtyUnit}</div>
           </div>
           <div>
             <span className="text-slate-400">Avg Cost / Unit</span>
@@ -101,11 +103,11 @@ export default function TransactionModal({ asset, onClose }) {
 
         {/* Quantity */}
         <div>
-          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Quantity ({asset.symbol}) *</label>
+          <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Quantity ({qtyUnit}) *</label>
           <input type="number" value={qty} onChange={e => handleQty(e.target.value)}
             placeholder="0" step="any" min="0" autoFocus
             className={`${inputBase} ${isSellExceed ? 'border-red-400 focus:border-red-500' : 'focus:border-blue-500'}`} />
-          {isSellExceed && <p className="text-xs text-red-500 mt-1">Exceeds holding ({formatNumber(stats.quantity)})</p>}
+          {isSellExceed && <p className="text-xs text-red-500 mt-1">Exceeds holding ({formatNumber(stats.quantity)} {qtyUnit})</p>}
         </div>
 
         {/* Currency toggle */}
@@ -114,7 +116,7 @@ export default function TransactionModal({ asset, onClose }) {
         {/* Price / Total */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Price / Unit ({currency})</label>
+            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Price / {isHSH ? 'กรัม' : 'Unit'} ({currency})</label>
             <input type="number" value={perUnit} onChange={e => handlePerUnit(e.target.value)}
               placeholder="0.00" step="any" min="0" className={inpCls} />
           </div>
@@ -159,7 +161,7 @@ export default function TransactionModal({ asset, onClose }) {
             <div className="flex justify-between">
               <span className="text-slate-500 dark:text-slate-400">Qty after {txType}</span>
               <span className="font-semibold text-slate-900 dark:text-white">
-                {formatNumber(txType === 'buy' ? stats.quantity + qtyNum : stats.quantity - qtyNum)} {asset.symbol}
+                {formatNumber(txType === 'buy' ? stats.quantity + qtyNum : stats.quantity - qtyNum)} {qtyUnit}
               </span>
             </div>
             {txType === 'buy' && newAvgCost() !== null && (
