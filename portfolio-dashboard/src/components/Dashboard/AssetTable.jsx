@@ -66,6 +66,13 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
     )
   }
 
+  const CapitalCell = ({ cost, costCurrency }) => {
+    if (!cost) return <span className="text-slate-300 dark:text-slate-600 text-sm">—</span>
+    return costCurrency === 'USD'
+      ? <span className="text-sm text-slate-600 dark:text-slate-400">{formatUSD(cost / usdToThb)}</span>
+      : <span className="text-sm text-slate-600 dark:text-slate-400">{formatTHB(cost)}</span>
+  }
+
   const ValueCell = ({ thbValue }) => {
     if (thbValue == null) return <span className="text-slate-300 dark:text-slate-600 text-sm">—</span>
     return (
@@ -158,6 +165,7 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
         </td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatNumber(a.quantity)}</td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatTHB(a.avgCostTHB)}</td>
+        <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell"><CapitalCell cost={a.cost} costCurrency={a.costCurrency} /></td>
         <td className="px-2 sm:px-4 py-2.5"><ValueCell thbValue={a.value ?? a.cost} /></td>
         <td className="px-2 sm:px-4 py-2.5"><PnL val={a.pnl} /></td>
         <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><PnLPct pct={a.pnlPct} /></td>
@@ -188,6 +196,7 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell" />
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{formatNumber(a.quantity)}</td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{formatTHB(a.avgCostTHB)}</td>
+        <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell"><CapitalCell cost={a.cost} costCurrency={a.costCurrency} /></td>
         <td className="px-2 sm:px-4 py-2.5"><ValueCell thbValue={a.value ?? a.cost} /></td>
         <td className="px-2 sm:px-4 py-2.5"><PnL val={a.pnl} /></td>
         <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><PnLPct pct={a.pnlPct} /></td>
@@ -249,6 +258,12 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
         </td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell font-medium text-slate-700 dark:text-slate-300">{formatNumber(totalQty)}</td>
         <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell text-slate-700 dark:text-slate-300">{formatTHB(avgCostTHB)}</td>
+        <td className="px-2 sm:px-4 py-2.5 hidden md:table-cell">
+          <CapitalCell
+            cost={totalCost}
+            costCurrency={group.every(a => a.costCurrency === 'USD') ? 'USD' : 'THB'}
+          />
+        </td>
         <td className="px-2 sm:px-4 py-2.5"><ValueCell thbValue={totalValue ?? totalCost} /></td>
         <td className="px-2 sm:px-4 py-2.5"><PnL val={totalPnL} /></td>
         <td className="px-2 sm:px-4 py-2.5 hidden sm:table-cell"><PnLPct pct={totalPnLPct} /></td>
@@ -284,6 +299,7 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
                 { label: '24h',             cls: 'hidden md:table-cell' },
                 { label: 'Qty',             cls: 'hidden md:table-cell' },
                 { label: 'Avg Cost',        cls: 'hidden md:table-cell' },
+                { label: 'Capital',         cls: 'hidden md:table-cell' },
                 { label: 'Value',           cls: '' },
                 { label: 'P&L',            cls: '' },
                 { label: 'P&L %',          cls: 'hidden sm:table-cell' },
@@ -305,7 +321,7 @@ export default function AssetTable({ onEditAsset, onAddTransaction, onViewHistor
                   lastType = type
                   rows.push(
                     <tr key={`header-${type}`} className="bg-slate-50 dark:bg-slate-800/50">
-                      <td colSpan={10} className="px-4 py-1.5">
+                      <td colSpan={11} className="px-4 py-1.5">
                         <span className={`text-[11px] font-semibold tracking-widest uppercase ${cfg?.bgColor} px-2 py-0.5 rounded-full`}>
                           {cfg?.label}
                         </span>

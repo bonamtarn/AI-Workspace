@@ -34,6 +34,7 @@ TV_MAP = {
     'MATIC': ('MATICUSDT', 'BINANCE',  'USD'),
     'XAUT':  ('XAUTUSDT',  'BINANCE',  'USD'),
     'PAXG':  ('PAXGUSDT',  'BINANCE',  'USD'),
+    'HSH':   ('GOLD',      'TVC',      'USD'),  # ทองแท่งฮั่วเซ่งเฮง → ราคาทองสากล (USD → THB)
     'SCB':   ('SCB',       'SET',      'THB'),
     'KKP':   ('KKP',       'SET',      'THB'),
     'KBANK': ('KBANK',     'SET',      'THB'),

@@ -34,6 +34,8 @@ export default function AddAssetModal({ asset: editing, onClose }) {
   const presets = PRESET_ASSETS[type] || []
   const pickPreset = (p) => { setSymbol(p.symbol); setName(p.name); setYahoo(p.yahooSymbol || '') }
 
+  const GOLD_BAHT_TO_GRAM = 15.244
+
   const autoFetchGoldPrice = async () => {
     setGoldLoading(true)
     setGoldError(null)
@@ -72,9 +74,9 @@ export default function AddAssetModal({ asset: editing, onClose }) {
       id: editing?.id || `a-${Date.now()}`,
       symbol: symbol.trim().toUpperCase(),
       name: name.trim() || symbol.trim(),
-      type, quantity: qtyNum, avgCostTHB: perUnitTHB,
+      type, quantity: qtyNum, avgCostTHB: perUnitTHB, costCurrency: currency,
       ...(yahoo && { yahooSymbol: yahoo.trim() }),
-      ...(manualPrice && { manualPriceTHB: parseFloat(manualPrice) }),
+      ...(manualPrice && { manualPriceTHB: (type === 'gold' && symbol === 'HSH') ? parseFloat(manualPrice) / GOLD_BAHT_TO_GRAM : parseFloat(manualPrice) }),
       ...(subPortfolio.trim() && { subPortfolio: subPortfolio.trim() }),
       ...(editing?.transactions && { transactions: editing.transactions }),
     }
@@ -150,7 +152,7 @@ export default function AddAssetModal({ asset: editing, onClose }) {
         {/* Quantity */}
         <div>
           <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
-            Quantity * {type === 'gold' && symbol === 'HSH' && <span className="text-slate-400">(บาทน้ำหนัก)</span>}
+            Quantity * {type === 'gold' && symbol === 'HSH' && <span className="text-slate-400">(กรัม)</span>}
           </label>
           <input type="number" value={qty} onChange={e => handleQty(e.target.value)} placeholder="0" step="any" min="0" className={inputCls} />
         </div>
@@ -159,7 +161,7 @@ export default function AddAssetModal({ asset: editing, onClose }) {
         {type === 'gold' && symbol === 'HSH' && (
           <div>
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">
-              ราคาทองแท่ง ขายออก (THB/บาท) <span className="text-slate-300 dark:text-slate-600">(optional)</span>
+              ราคาทองแท่ง ขายออก (THB/บาทน้ำหนัก) <span className="text-slate-300 dark:text-slate-600">(optional)</span>
             </label>
             <div className="flex gap-2">
               <input type="number" value={manualPrice} onChange={e => setManualPrice(e.target.value)} placeholder="0.00" step="any" min="0" className={inputCls} />
