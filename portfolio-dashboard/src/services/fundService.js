@@ -4,3 +4,9 @@ export async function fetchMutualFundNAV(symbol) {
   if (!res.ok) throw new Error(data.error || `ไม่พบ NAV สำหรับ ${symbol}`)
   return { nav: data.nav, source: data.source, date: data.date }
 }
+
+export async function fetchFundList() {
+  const res = await fetch('/api/fundlist')
+  if (!res.ok) return []
+  return res.json()
+}

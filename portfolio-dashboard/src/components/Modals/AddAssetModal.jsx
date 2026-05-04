@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { usePortfolio } from '../../context/PortfolioContext'
 import { ASSET_TYPES, PRESET_ASSETS } from '../../utils/assetConfig'
 import { formatTHB, formatUSD } from '../../utils/formatters'
-import { fetchMutualFundNAV } from '../../services/fundService'
+import { fetchMutualFundNAV, fetchFundList } from '../../services/fundService'
 import { fetchGoldBarSellPrice } from '../../services/goldService'
 import { ModalShell, ModalHeader } from '../ui/Modal'
 import { CurrencyToggle } from '../ui/CurrencyToggle'
@@ -32,6 +32,11 @@ export default function AddAssetModal({ asset: editing, onClose }) {
   const [navError, setNavError] = useState(null)
   const [goldLoading, setGoldLoading] = useState(false)
   const [goldError, setGoldError] = useState(null)
+
+  // Fund autocomplete
+  const [fundList, setFundList] = useState([])
+  const [showFundDropdown, setShowFundDropdown] = useState(false)
+  const symbolInputRef = useRef(null)
 
   // HSH-specific states (qty in selected unit, cost always THB/บาทน้ำหนัก)
   const [goldUnit, setGoldUnit] = useState('baht')
@@ -101,6 +106,29 @@ export default function AddAssetModal({ asset: editing, onClose }) {
       setGoldQty(converted)
     }
     setGoldUnit(newUnit)
+  }
+
+  // Load fund list once when mutual_fund tab is active
+  useEffect(() => {
+    if (type !== 'mutual_fund' || fundList.length > 0) return
+    fetchFundList().then(setFundList).catch(() => {})
+  }, [type])
+
+  const fundDropdownItems = useMemo(() => {
+    if (type !== 'mutual_fund' || !symbol.trim() || !fundList.length) return []
+    const q = symbol.toUpperCase()
+    const starts = fundList.filter(f => f.code.toUpperCase().startsWith(q))
+    const contains = fundList.filter(f =>
+      !f.code.toUpperCase().startsWith(q) &&
+      (f.code.toUpperCase().includes(q) || f.name.toUpperCase().includes(q))
+    )
+    return [...starts, ...contains].slice(0, 10)
+  }, [symbol, fundList, type])
+
+  const selectFund = (fund) => {
+    setSymbol(fund.code)
+    setName(fund.name)
+    setShowFundDropdown(false)
   }
 
   const presets = PRESET_ASSETS[type] || []
@@ -207,9 +235,42 @@ export default function AddAssetModal({ asset: editing, onClose }) {
 
         {/* Symbol + Name */}
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div className="relative">
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Symbol *</label>
-            <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="BTC, ETH, PTT" className={inputCls} />
+            {type === 'mutual_fund' ? (
+              <>
+                <input
+                  ref={symbolInputRef}
+                  value={symbol}
+                  onChange={e => { setSymbol(e.target.value.toUpperCase()); setShowFundDropdown(true) }}
+                  onFocus={() => { if (symbol) setShowFundDropdown(true) }}
+                  onBlur={() => setTimeout(() => setShowFundDropdown(false), 150)}
+                  placeholder="ES-US500, SCBGOLD…"
+                  className={inputCls}
+                  autoComplete="off"
+                />
+                {showFundDropdown && fundDropdownItems.length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+                    {fundDropdownItems.map(f => (
+                      <button
+                        key={`${f.code}-${f.source}`}
+                        type="button"
+                        onMouseDown={() => selectFund(f)}
+                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white">{f.code}</span>
+                          <span className="text-[10px] text-slate-400 shrink-0">{f.source}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{f.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="BTC, ETH, PTT" className={inputCls} />
+            )}
           </div>
           <div>
             <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">Name</label>
